@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+<model xmlns="http://www.cellml.org/cellml/1.1#" name="holmes_actin_npf_waves">
+    <!-- Your code goes here -->
+    <units name="uM">
+        <unit multiplier="0.001" units="mole"/>
+        <unit exponent="-3" units="metre"/>
+    </units>
+    
+    <units name="um">
+        <unit exponent="-6" units="metre"/>
+    </units>
+    
+    <units name="psec">
+        <unit exponent="-1" units="second"/>
+    </units>
+    
+    <units name="uMpsec">
+        <unit units="uM"/>
+        <unit units="psec"/>
+    </units>
+    
+
+    <component name="environment">
+        <variable name="t" public_interface="out" units="second"/>
+    </component>
+    
+    <component name="cell">
+        <variable name="t" public_interface="in" units="second"/>
+        <variable initial_value="0.0" name="A_npf" units="uM"/>
+        <variable initial_value="0.0" name="I_npf" units="uM"/>
+        <variable initial_value="0.0" name="F_actin" units="uM"/>
+        <variable initial_value="0.1" name="epsilon" units="psec"/>
+        <variable initial_value="0.0" name="k_o" units="psec"/>
+        <variable initial_value="0.25" name="k_s" units="dimensionless"/>
+        <variable initial_value="1.0" name="k_n" units="dimensionless"/>        
+        <variable initial_value="0.0" name="s_1" units="dimensionless"/>
+        <variable initial_value="0.0" name="s_2" units="dimensionless"/>
+        <variable initial_value="1.0" name="gamma" units="psec"/>
+        <variable initial_value="1.0" name="delta" units="psec"/>
+        <variable initial_value="0.4" name="A_o" units="uM"/>
+        <variable initial_value="0.5" name="F_o" units="uM"/>
+        <variable initial_value="2.0" name="n" units="dimensionless"/>
+        <variable name="J_activation" units="uMpsec"/>
+        <variable name="h" units="uM"/>
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply><eq/>
+                <ci>J_activation</ci>
+                <apply><minus/>
+                    <apply><times/>
+                        <apply><plus/>
+                            <ci>k_o</ci>
+                            <apply><divide/>
+                                <apply><times/>
+                                    <ci>gamma</ci>
+                                    <apply><power/>
+                                        <ci>A_npf</ci>
+                                        <ci>n</ci>
+                                    </apply>
+                                 </apply>
+                                <apply><plus/>
+                                    <apply><power/>
+                                        <ci>A_o</ci>
+                                        <ci>n</ci>
+                                    </apply>
+                                    <apply><power/>
+                                        <ci>A_npf</ci>
+                                        <ci>n</ci>
+                                    </apply>
+                                </apply>
+                             </apply>
+                        </apply>
+                        <ci>I_npf</ci>
+                    </apply>
+                    <apply><times/>
+                        <ci>delta</ci>
+                        <ci>A_npf</ci>
+                         <apply><plus/>
+                            <ci>s_1</ci>
+                            <apply><divide/>
+                                <apply><times/>
+                                    <ci>s_2</ci>
+                                    <ci>F_actin</ci>
+                                 </apply>
+                                <apply><plus/>
+                                    <ci>F_o</ci>
+                                    <ci>F_actin</ci>
+                                </apply>
+                             </apply>
+                        </apply>                       
+                    </apply>
+                 </apply>
+            </apply>
+        </math>
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply><eq/>
+                <ci>h</ci>
+                <apply><minus/>
+                    <apply><times/>
+                        <ci>k_n</ci>
+                        <ci>A_npf</ci>
+                    </apply>
+                    <apply><times/>
+                        <ci>k_s</ci>                    
+                        <ci>F_actin</ci>
+                    </apply>
+                </apply>
+            </apply>
+        </math>
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply><eq/>
+                <apply><diff/>
+                    <bvar>
+                        <ci>t</ci>
+                    </bvar>
+                    <ci>F_actin</ci>
+                </apply>
+                <apply><times/>
+                    <ci>epsilon</ci>
+                    <ci>h</ci>
+                </apply>
+            </apply>
+        </math>
+        
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply><eq/>
+                <apply><diff/>
+                    <bvar>
+                        <ci>t</ci>
+                    </bvar>
+                    <ci>A_npf</ci>
+                 </apply>
+                 <ci>J_activation</ci>
+             </apply>
+        </math>
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+            <apply><eq/>
+                <apply><diff/>
+                    <bvar>
+                        <ci>t</ci>
+                    </bvar>
+                    <ci>I_npf</ci>
+                 </apply>
+                 <apply><minus/>
+                    <ci>J_activation</ci>
+                 </apply>
+             </apply>
+        </math>
+
+        </component>
+        
+     <connection>
+        <map_components component_1="environment" component_2="cell"/>
+        <map_variables variable_1="t" variable_2="t"/>
+     </connection>
+        
+        
+</model>
