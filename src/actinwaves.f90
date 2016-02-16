@@ -92,6 +92,8 @@ PROGRAM ActinWaves
   INTEGER(CMISSIntg), PARAMETER :: NPF_InActiveEquationsSetFieldUserNumber=24
   INTEGER(CMISSIntg), PARAMETER :: NPF_InActiveSourceFieldUserNumber=16
 
+  INTEGER(CMISSIntg), PARAMETER :: FActinFieldUserNumber=25
+
   INTEGER(CMISSIntg), PARAMETER :: ProblemUserNumber=17
 
   INTEGER(CMISSIntg), PARAMETER :: CellMLUserNumber=18
@@ -116,7 +118,7 @@ PROGRAM ActinWaves
   TYPE(cmfe_EquationsType) :: NPF_ActiveEquations, NPF_InActiveEquations
   TYPE(cmfe_EquationsSetType) :: NPF_ActiveEquationsSet, NPF_InActiveEquationsSet
   TYPE(cmfe_FieldType) :: NPF_ActiveEquationsSetField, NPF_InActiveEquationsSetField
-  TYPE(cmfe_FieldType) :: NPF_ActiveField, NPF_InActiveField
+  TYPE(cmfe_FieldType) :: NPF_ActiveField, NPF_InActiveField, FActinField
   TYPE(cmfe_FieldType) :: NPF_ActiveMaterialsField, NPF_InActiveMaterialsField
   TYPE(cmfe_FieldType) :: NPF_ActiveSourceField, NPF_InActiveSourceField
 
@@ -150,9 +152,9 @@ PROGRAM ActinWaves
   INTEGER(CMISSIntg),DIMENSION(2) :: BCNODES
   INTEGER(CMISSIntg) :: MPI_IERROR
   INTEGER :: node,st,outputfreq,NUMBER_OF_NODES,NUMBER_OF_ATTRIBUTES,NUMBER_OF_COORDS, &
-    & BOUNDARY_MARKER,nodedomain,NODES_PER_ELE,ELE_ATTRIBUTES,element,i
+    & BOUNDARY_MARKER,nodedomain,NODES_PER_ELE,ELE_ATTRIBUTES,element,i,GeometricMeshComponent
   REAL(CMISSRP) :: init_NPFActive, init_NPFInActive, Dx_NPFActive,Dy_NPFActive,Dx_NPFInActive,Dy_NPFInActive
-  REAL(CMISSRP) :: startT,endT,Tstep,ODE_TIME_STEP,nodex,nodey, VALUE
+  REAL(CMISSRP) :: startT,endT,Tstep,ODE_TIME_STEP,nodex,nodey, VALUE, init_FActin
   INTEGER(CMISSIntg) :: NumberOfComputationalNodes,ComputationalNodeNumber
   INTEGER(CMISSIntg) :: EquationsSetIndex,CellMLIndex,constantModelIndex
   INTEGER(CMISSIntg) :: Err
@@ -189,6 +191,8 @@ PROGRAM ActinWaves
     READ(9,*)
     READ(9,*) init_NPFInActive,Dx_NPFInActive,Dy_NPFInActive
     READ(9,*)
+    READ(9,*) init_FActin
+    READ(9,*)
     READ(9,*) startT,endT,Tstep,ODE_TIME_STEP
     READ(9,*) 
     READ(9,*) outputfreq
@@ -215,7 +219,7 @@ PROGRAM ActinWaves
 
 
   
-  EXPORT_FIELD=.FALSE.
+  EXPORT_FIELD=.TRUE.
 !_________________________________________________________________________________________________
   !Intialise OpenCMISS
   CALL cmfe_Initialise(WorldCoordinateSystem,WorldRegion,Err)
@@ -461,6 +465,31 @@ PROGRAM ActinWaves
   !Initialising the iCaField to zero everywhere. 
   CALL cmfe_Field_ComponentValuesInitialise(NPF_InActiveSourceField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
     & 1,0.0_CMISSRP,Err)
+
+!###################
+  !Set up an FActin Field
+!###################
+  CALL cmfe_Field_Initialise(FActinField,Err)
+  CALL cmfe_Field_CreateStart(FActinFieldUserNumber,Region,FActinField,Err)
+  CALL cmfe_Field_TypeSet(FActinField,CMFE_FIELD_GENERAL_TYPE,Err)
+  CALL cmfe_Field_MeshDecompositionSet(FActinField,Decomposition,Err)
+  CALL cmfe_Field_GeometricFieldSet(FActinField,GeometricField,Err)
+  CALL cmfe_Field_NumberOfVariablesSet(FActinField,1,Err)
+  CALL cmfe_Field_VariableTypesSet(FActinField,[CMFE_FIELD_U_VARIABLE_TYPE],Err)
+  CALL cmfe_Field_DataTypeSet(FActinField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_DP_TYPE,Err)
+  CALL cmfe_Field_DimensionSet(FActinField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_SCALAR_DIMENSION_TYPE,Err)
+  CALL cmfe_Field_NumberOfComponentsSet(FActinField,CMFE_FIELD_U_VARIABLE_TYPE,1,Err)
+  CALL cmfe_Field_VariableLabelSet(FActinField,CMFE_FIELD_U_VARIABLE_TYPE,"FActin Field",Err)
+  CALL cmfe_Field_ComponentMeshComponentGet(GeometricField,CMFE_FIELD_U_VARIABLE_TYPE,1,GeometricMeshComponent,Err)
+  !Default to the geometric interpolation setup
+  CALL cmfe_Field_ComponentMeshComponentSet(FActinField,CMFE_FIELD_U_VARIABLE_TYPE,1,GeometricMeshComponent,Err)            
+  !Specify the interpolation to be same as geometric interpolation
+  CALL cmfe_Field_ComponentInterpolationSet(FActinField,CMFE_FIELD_U_VARIABLE_TYPE,1, &
+    & CMFE_FIELD_NODE_BASED_INTERPOLATION,Err)
+  CALL cmfe_Field_CreateFinish(FActinField,Err)  
+  CALL cmfe_Field_ComponentValuesInitialise(FActinField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+    & 1,init_FActin,Err)
+
 !______________________________________________________________________________________________________________  
   !Start to set up CellML Fields
 
@@ -469,10 +498,10 @@ PROGRAM ActinWaves
   CALL cmfe_CellML_CreateStart(CellMLUserNumber,Region,CellML,Err)
 
   !Import a toy constant source model from a file
-  CALL cmfe_CellML_ModelImport(CellML,"zero-rate.xml",constantModelIndex,Err)
+  CALL cmfe_CellML_ModelImport(CellML,ActinPolymSignalModel,constantModelIndex,Err)
 
   CALL cmfe_CellML_VariableSetAsKnown(CellML,constantModelIndex,"dude/param",Err)
-  CALL cmfe_CellML_VariableSetAsWanted(CellML,constantModelIndex,"dude/intmd",Err)
+  CALL cmfe_CellML_VariableSetAsWanted(CellML,constantModelIndex,"cell/h",Err)
 
   !Finish the CellML environment
   CALL cmfe_CellML_CreateFinish(CellML,Err)
@@ -480,14 +509,19 @@ PROGRAM ActinWaves
   !Start the creation of CellML <--> OpenCMISS field maps
   CALL cmfe_CellML_FieldMapsCreateStart(CellML,Err)
   CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,NPF_ActiveField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
-    & constantModelIndex,"dude/ca",CMFE_FIELD_VALUES_SET_TYPE,Err)
-  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"dude/ca",CMFE_FIELD_VALUES_SET_TYPE, &
+    & constantModelIndex,"cell/A_npf",CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"cell/A_npf",CMFE_FIELD_VALUES_SET_TYPE, &
     & NPF_ActiveField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE,Err)
 
   CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,NPF_InActiveField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
-    & constantModelIndex,"dude/ca",CMFE_FIELD_VALUES_SET_TYPE,Err)
-  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"dude/ca",CMFE_FIELD_VALUES_SET_TYPE, &
+    & constantModelIndex,"cell/I_npf",CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"cell/I_npf",CMFE_FIELD_VALUES_SET_TYPE, &
     & NPF_InActiveField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE,Err)
+
+  CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,FActinField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
+    & constantModelIndex,"cell/F_actin",CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"cell/F_actin",CMFE_FIELD_VALUES_SET_TYPE, &
+    & FActinField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE,Err)
 
   !Finish the creation of CellML <--> OpenCMISS field maps
   CALL cmfe_CellML_FieldMapsCreateFinish(CellML,Err)
