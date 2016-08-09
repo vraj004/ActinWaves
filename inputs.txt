@@ -1,18 +1,20 @@
 #settings file to start ActinWaves simulation
 #input mesh node and ele files
-'/Users/vrajagopal/Documents/cell_migration/sims/opencmiss/ActinWaves/ellipse.1.node','/Users/vrajagopal/Documents/cell_migration/sims/opencmiss/ActinWaves/ellipse.1.ele'
+'./ellipse.1.node','./ellipse.1.ele'
 #actin polymerisation signalling model
-'/Users/vrajagopal/Documents/cell_migration/sims/opencmiss/ActinWaves/holmes_actin_npf_waves.cellml'
+'./holmes_actin_npf_waves.cellml'
 #NPF_Active initial conc. and diffusivities in x and y
-0.4, 0.00333, 0.00333
+0.174, 0.00333, 0.00333
 #NPF_InActive initial conc. and diffusivities in x and y
-0.6, 0.3333,0.3333
+0.826, 0.3333,0.3333
 #FActin initial conc.
-0.5
+0.347
 #wave kinetics params s1,s2,k0
 1.2,0.15,0.2
+#perturbation params - amount to be added to active form, position from left to right on x-axis at which perturbation starts; perturbation ends at right bdy
+0.3,0.9
 #simulation time parameters (s)- initial, final, pde timestep, ode timestep
-0.0,0.2,0.1,0.00001
+0.0,2.1,0.001,0.00001
 #results output frequency
 1
 
