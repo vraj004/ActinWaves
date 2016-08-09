@@ -15,9 +15,9 @@ Created on Mon Nov 16 16:07:24 2015
 """
 import numpy as np
 polyfile = 'ellipse.poly'
-minor_axis = 5.0
-major_axis = 5.0
-num_heminodes = 105 #number of nodes to make one half of the ellipse
+minor_axis = 1.0
+major_axis = 1.0
+num_heminodes = 50 #number of nodes to make one half of the ellipse
 #create array of x-coordinates from -minor->+minor
 x_cords_top = np.linspace((-1*minor_axis), (minor_axis),num_heminodes)
 x_cords_bot = x_cords_top[1:(num_heminodes-1)]
