@@ -196,7 +196,7 @@ PROGRAM ActinWaves
     READ(9,*)
     READ(9,*) init_FActin
     READ(9,*)
-    READ(9,*) stwo,sone,kzero
+    READ(9,*) sone,stwo,kzero
     READ(9,*)
     READ(9,*) startT,endT,Tstep,ODE_TIME_STEP
     READ(9,*) 
@@ -690,7 +690,6 @@ PROGRAM ActinWaves
   !Finish creating the problem control loop
   CALL cmfe_Problem_ControlLoopCreateFinish(Problem,Err)
 !______________________________________________________________________________________________________________
-  !CALL cmfe_DiagnosticsSetOn(cmfe_AllDiagType,[1,2,3,4,5],"Diagnostics",["cmfe_SolverTypeInitialise"],Err)
   WRITE(*,*) 'Set up the problem solvers for Strang splitting'
   CALL cmfe_Problem_SolversCreateStart(Problem,Err)
   !First solver is a DAE solver
@@ -775,6 +774,8 @@ PROGRAM ActinWaves
 !_________________________________________________________________________________________________________
   !Create the solver equations set boundary conditions
   WRITE(*,*) 'Set up boundary conditions' 
+  CALL cmfe_DiagnosticsSetOn(CMFE_FROM_Diag_Type,[1],"Diagnostics",["BOUNDARY_CONDITIONS_INITIALISE"],Err)
+
   CALL cmfe_BoundaryConditions_Initialise(BoundaryConditions,Err)
   CALL cmfe_SolverEquations_BoundaryConditionsCreateStart(SolverEquations,BoundaryConditions,Err)
  !Set no flux on cell boundary
@@ -797,6 +798,8 @@ PROGRAM ActinWaves
   ENDDO
 
   CALL cmfe_SolverEquations_BoundaryConditionsCreateFinish(SolverEquations,Err)
+  CALL cmfe_DiagnosticsSetOff(Err)
+
 !__________________________________________________________________________________________________________
   !Solve the problem
   CALL cmfe_Problem_Solve(Problem,Err)
