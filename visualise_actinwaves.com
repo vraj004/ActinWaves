@@ -1,3 +1,9 @@
+$total_t = 101; 
+$tstep = .1;
+$tfreq = 10;
+$spec = 1;
+$numsteps = $total_t/$tstep;
+
 gfx read node Cell_Geom.part0.exnode
 gfx read ele Cell_Geom.part0.exelem
 
@@ -16,3 +22,24 @@ gfx modify window 1 background colour 0 0 0 texture none;
 gfx modify window 1 view parallel eye_point 0 0 28.8485 interest_point 0 0 0 up_vector -0 1 -0 view_angle 40 near_clipping_plane 1.44243 far_clipping_plane 58.547 relative_viewport ndc_placement -1 1 2 2 viewport_coordinates 0 0 1 1;
 gfx modify window 1 set transform_tool current_pane 1 std_view_angle 40 normal_lines no_antialias depth_of_field 0.0 fast_transparency blend_normal;
 
+set dir /Users/vrajagopal/Documents/cell_migration/sims/opencmiss/ActinWaves/output/
+$numdigits = int(log10(int($total_t/$tstep))+1);
+$leadstring = "%0".$numdigits."d";
+
+for($tid=0;$tid<=$numsteps;$tid++){
+  $modval = $tid % $tfreq;
+  if($modval==0){
+    $fileid = sprintf($leadstring,$tid);
+    $file = 'TIME_STEP_SPEC_'.$spec.'.part00.'.$fileid.'.exnode'
+    print $file
+    print '\n';
+    gfx read node $file time $tid;
+    
+    }
+  }
+
+
+sub log10 {
+  $n=shift;
+  log($n)/log(10);
+  }
