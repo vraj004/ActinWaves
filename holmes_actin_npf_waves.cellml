@@ -20,20 +20,20 @@
     </component>
     <component name="cell">
         <variable name="t" public_interface="in" units="second"/>
-        <variable initial_value="0.0" name="A_npf" units="uM"/>
-        <variable initial_value="0.0" name="I_npf" units="uM"/>
-        <variable initial_value="0.0" name="F_actin" units="uM"/>
+        <variable initial_value="0.174" name="A_npf" units="uM"/>
+        <variable initial_value="0.826" name="I_npf" units="uM"/>
+        <variable initial_value="0.347" name="F_actin" units="uM"/>
         <variable initial_value="0.1" name="epsilon" units="psec"/>
         <variable initial_value="0.2" name="k_o" units="psec"/>
         <variable initial_value="0.5" name="k_s" units="dimensionless"/>
         <variable initial_value="1.0" name="k_n" units="dimensionless"/>
-        <variable initial_value="0.0" name="s_1" units="dimensionless"/>
-        <variable initial_value="0.0" name="s_2" units="dimensionless"/>
-        <variable initial_value="1.0" name="gamma" units="psec"/>
+        <variable initial_value="1.2" name="s_1" units="dimensionless"/>
+        <variable initial_value="0.15" name="s_2" units="dimensionless"/>
+        <variable initial_value="1.5" name="gamma" units="psec"/>
         <variable initial_value="1.0" name="delta" units="psec"/>
         <variable initial_value="0.5" name="A_o" units="uM"/>
-        <variable initial_value="0.5" name="F_o" units="uM"/>
-        <variable initial_value="2.0" name="n" units="dimensionless"/>
+        <variable initial_value="1.0" name="F_o" units="uM"/>
+        <variable initial_value="3.0" name="n" units="dimensionless"/>
         <variable name="J_activation" units="uMpsec"/>
         <variable name="h" units="uM"/>
         <math xmlns="http://www.w3.org/1998/Math/MathML">
