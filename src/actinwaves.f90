@@ -96,6 +96,7 @@ PROGRAM ActinWaves
   INTEGER(CMISSIntg), PARAMETER :: stwoFieldUserNumber=26
   INTEGER(CMISSIntg), PARAMETER :: soneFieldUserNumber=27
   INTEGER(CMISSIntg), PARAMETER :: kzeroFieldUserNumber=28
+  INTEGER(CMISSIntg), PARAMETER :: hFieldUserNumber=29
 
   INTEGER(CMISSIntg), PARAMETER :: ProblemUserNumber=17
 
@@ -104,6 +105,7 @@ PROGRAM ActinWaves
   INTEGER(CMISSIntg), PARAMETER :: CellMLStateFieldUserNumber=20
   INTEGER(CMISSIntg), PARAMETER :: CellMLIntermediateFieldUserNumber=21
   INTEGER(CMISSIntg), PARAMETER :: CellMLParametersFieldUserNumber=22
+  
   
   !cmfe type variables used for this program
 
@@ -122,7 +124,7 @@ PROGRAM ActinWaves
   TYPE(cmfe_EquationsSetType) :: NPF_ActiveEquationsSet, NPF_InActiveEquationsSet
   TYPE(cmfe_FieldType) :: NPF_ActiveEquationsSetField, NPF_InActiveEquationsSetField
   TYPE(cmfe_FieldType) :: NPF_ActiveField, NPF_InActiveField, FActinField,stwoField,soneField
-  TYPE(cmfe_FieldType) :: kzeroField,NPF_ActiveMaterialsField, NPF_InActiveMaterialsField
+  TYPE(cmfe_FieldType) :: kzeroField,NPF_ActiveMaterialsField, NPF_InActiveMaterialsField,hField
   TYPE(cmfe_FieldType) :: NPF_ActiveSourceField, NPF_InActiveSourceField
 
 
@@ -158,6 +160,7 @@ PROGRAM ActinWaves
     & BOUNDARY_MARKER,nodedomain,NODES_PER_ELE,ELE_ATTRIBUTES,element,i,GeometricMeshComponent
   REAL(CMISSRP) :: init_NPFActive, init_NPFInActive, Dx_NPFActive,Dy_NPFActive,Dx_NPFInActive,Dy_NPFInActive
   REAL(CMISSRP) :: startT,endT,Tstep,ODE_TIME_STEP,nodex,nodey, VALUE, init_FActin,kzero,stwo,sone
+  REAL(CMISSRP) :: additive_perturb_val, perturb_pos_startx,perturb_NPFActive,perturb_NPFInActive
   INTEGER(CMISSIntg) :: NumberOfComputationalNodes,ComputationalNodeNumber
   INTEGER(CMISSIntg) :: EquationsSetIndex,CellMLIndex,constantModelIndex
   INTEGER(CMISSIntg) :: Err
@@ -173,7 +176,7 @@ PROGRAM ActinWaves
   !If attempt fails set with system estimated values
   IF(.NOT.QUICKWIN_STATUS) QUICKWIN_STATUS=SETWINDOWCONFIG(QUICKWIN_WINDOW_CONFIG)
 #endif
-
+  
 
 !_________________________________________________________________________________________________
   !Problem INPUTS. PARAMETERS FROM Holmes et.al. 2012
@@ -197,6 +200,8 @@ PROGRAM ActinWaves
     READ(9,*) init_FActin
     READ(9,*)
     READ(9,*) sone,stwo,kzero
+    READ(9,*)
+    READ(9,*) additive_perturb_val,perturb_pos_startx
     READ(9,*)
     READ(9,*) startT,endT,Tstep,ODE_TIME_STEP
     READ(9,*) 
@@ -419,6 +424,11 @@ PROGRAM ActinWaves
   CALL cmfe_Field_ComponentValuesInitialise(NPF_ActiveSourceField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
     & 1,0.0_CMISSRP,Err)
 
+  CALL CMFE_Field_ParameterSetUpdateStart(NPF_ActiveMaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateFinish(NPF_ActiveMaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateStart(NPF_ActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateFinish(NPF_ActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+
 
 !###################
   !NPF_InActive equations
@@ -470,6 +480,12 @@ PROGRAM ActinWaves
   !Initialising the iCaField to zero everywhere. 
   CALL cmfe_Field_ComponentValuesInitialise(NPF_InActiveSourceField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
     & 1,0.0_CMISSRP,Err)
+    
+  CALL CMFE_Field_ParameterSetUpdateStart(NPF_InActiveMaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateFinish(NPF_InActiveMaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateStart(NPF_InActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateFinish(NPF_InActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+
 
 !###################
   !Set up an FActin Field
@@ -565,6 +581,31 @@ PROGRAM ActinWaves
   CALL cmfe_Field_ComponentValuesInitialise(kzeroField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
     & 1,kzero,Err)
 
+!###################
+  !Set up h Field
+!###################
+  CALL cmfe_Field_Initialise(hField,Err)
+  CALL cmfe_Field_CreateStart(hFieldUserNumber,Region,hField,Err)
+  CALL cmfe_Field_TypeSet(hField,CMFE_FIELD_GENERAL_TYPE,Err)
+  CALL cmfe_Field_MeshDecompositionSet(hField,Decomposition,Err)
+  CALL cmfe_Field_GeometricFieldSet(hField,GeometricField,Err)
+  CALL cmfe_Field_NumberOfVariablesSet(hField,1,Err)
+  CALL cmfe_Field_VariableTypesSet(hField,[CMFE_FIELD_U_VARIABLE_TYPE],Err)
+  CALL cmfe_Field_DataTypeSet(hField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_DP_TYPE,Err)
+  CALL cmfe_Field_DimensionSet(hField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_SCALAR_DIMENSION_TYPE,Err)
+  CALL cmfe_Field_NumberOfComponentsSet(hField,CMFE_FIELD_U_VARIABLE_TYPE,1,Err)
+  CALL cmfe_Field_VariableLabelSet(hField,CMFE_FIELD_U_VARIABLE_TYPE,"kzero Field",Err)
+  CALL cmfe_Field_ComponentMeshComponentGet(GeometricField,CMFE_FIELD_U_VARIABLE_TYPE,1,GeometricMeshComponent,Err)
+  !Default to the geometric interpolation setup
+  CALL cmfe_Field_ComponentMeshComponentSet(hField,CMFE_FIELD_U_VARIABLE_TYPE,1,GeometricMeshComponent,Err)            
+  !Specify the interpolation to be same as geometric interpolation
+  CALL cmfe_Field_ComponentInterpolationSet(hField,CMFE_FIELD_U_VARIABLE_TYPE,1, &
+    & CMFE_FIELD_NODE_BASED_INTERPOLATION,Err)
+  CALL cmfe_Field_CreateFinish(hField,Err)  
+  CALL cmfe_Field_ComponentValuesInitialise(hField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+    & 1,0.0_CMISSDP,Err)
+
+
 !______________________________________________________________________________________________________________  
   !Start to set up CellML Fields
 
@@ -585,12 +626,26 @@ PROGRAM ActinWaves
 
   !Start the creation of CellML <--> OpenCMISS field maps
   CALL cmfe_CellML_FieldMapsCreateStart(CellML,Err)
+
   CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,stwoField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
     & constantModelIndex,"cell/s_2",CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"cell/s_2",CMFE_FIELD_VALUES_SET_TYPE, &
+    & stwoField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE,Err)
+
   CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,soneField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
     & constantModelIndex,"cell/s_1",CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"cell/s_1",CMFE_FIELD_VALUES_SET_TYPE, &
+    & soneField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE,Err)
+
   CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,kzeroField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
     & constantModelIndex,"cell/k_o",CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"cell/k_o",CMFE_FIELD_VALUES_SET_TYPE, &
+    & kzeroField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE,Err)
+
+  CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,hField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
+    & constantModelIndex,"cell/h",CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL cmfe_CellML_CreateCellMLToFieldMap(CellML,constantModelIndex,"cell/h",CMFE_FIELD_VALUES_SET_TYPE, &
+    & hField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE,Err)
 
 
   CALL cmfe_CellML_CreateFieldToCellMLMap(CellML,NPF_ActiveField,CMFE_FIELD_U_VARIABLE_TYPE,1,CMFE_FIELD_VALUES_SET_TYPE, &
@@ -773,17 +828,30 @@ PROGRAM ActinWaves
 
 !_________________________________________________________________________________________________________
   !Create the solver equations set boundary conditions
-  WRITE(*,*) 'Set up boundary conditions' 
-  CALL cmfe_DiagnosticsSetOn(CMFE_FROM_Diag_Type,[1],"Diagnostics",["BOUNDARY_CONDITIONS_INITIALISE"],Err)
+  WRITE(*,*) 'Set up boundary conditions as well as perturbation conditions'
+  WRITE(*,*) 'Presume that perturbation is being conducted from initial conds. that generate steady state'
+  perturb_NPFActive = init_NPFActive+additive_perturb_val
+  perturb_NPFInActive = init_NPFInActive-additive_perturb_val
+  
+  !CALL cmfe_DiagnosticsSetOn(CMFE_FROM_Diag_Type,[1],"Diagnostics",["BOUNDARY_CONDITIONS_INITIALISE"],Err)
 
   CALL cmfe_BoundaryConditions_Initialise(BoundaryConditions,Err)
   CALL cmfe_SolverEquations_BoundaryConditionsCreateStart(SolverEquations,BoundaryConditions,Err)
  !Set no flux on cell boundary
   DO node=1,NUMBER_OF_NODES
-    IF(NodeNums(node,2).EQ.1) THEN
-      NODE_NUMBER = NodeNums(node,1)
-      CALL cmfe_Decomposition_NodeDomainGet(Decomposition,NODE_NUMBER,1,NodeDomain,Err)
-      IF(NodeDomain==ComputationalNodeNumber) THEN
+    NODE_NUMBER = NodeNums(node,1)
+    CALL cmfe_Decomposition_NodeDomainGet(Decomposition,NODE_NUMBER,1,NodeDomain,Err)
+    IF(NodeDomain==ComputationalNodeNumber) THEN  
+      !setting up perturbed initial conds.
+      nodex = NodeCoords(NODE_NUMBER,1)
+      IF(nodex.GT.perturb_pos_startx) THEN
+        CALL cmfe_Field_ParameterSetUpdateNode(NPF_ActiveField,cmfe_FIELD_U_VARIABLE_TYPE, &
+          &  cmfe_FIELD_VALUES_SET_TYPE,1,1,NODE_NUMBER,1,perturb_NPFActive,Err)           
+        CALL cmfe_Field_ParameterSetUpdateNode(NPF_InActiveField,cmfe_FIELD_U_VARIABLE_TYPE, &
+          &  cmfe_FIELD_VALUES_SET_TYPE,1,1,NODE_NUMBER,1,perturb_NPFInActive,Err) 
+      ENDIF
+      !set up bcs
+      IF(NodeNums(node,2).EQ.1) THEN
         CONDITION = CMFE_BOUNDARY_CONDITION_FIXED
         VALUE=0.0_CMISSDP
         CALL cmfe_BoundaryConditions_SetNode(BoundaryConditions,NPF_ActiveField, &
@@ -796,14 +864,19 @@ PROGRAM ActinWaves
       ENDIF
     ENDIF
   ENDDO
+  CALL CMFE_Field_ParameterSetUpdateStart(NPF_InActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateFinish(NPF_InActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateStart(NPF_ActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
+  CALL CMFE_Field_ParameterSetUpdateFinish(NPF_ActiveField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,Err)
 
   CALL cmfe_SolverEquations_BoundaryConditionsCreateFinish(SolverEquations,Err)
-  CALL cmfe_DiagnosticsSetOff(Err)
+  !CALL cmfe_DiagnosticsSetOff(Err)  
 
 !__________________________________________________________________________________________________________
   !Solve the problem
   CALL cmfe_Problem_Solve(Problem,Err)
 !__________________________________________________________________________________________________________
+
   EXPORT_FIELD=.TRUE.
   IF(EXPORT_FIELD) THEN
     CALL cmfe_Fields_Initialise(Fields,Err)
