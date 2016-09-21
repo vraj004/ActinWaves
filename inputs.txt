@@ -12,9 +12,8 @@
 #wave kinetics params s1,s2,k0
 1.2,0.15,0.2
 #perturbation params - amount to be added to active form, position from left to right on x-axis at which perturbation starts; perturbation ends at right bdy
-0.3,0.9
+0.3,0.4
 #simulation time parameters (s)- initial, final, pde timestep, ode timestep
-0.0,2.1,0.001,0.00001
+0.0,1.1,0.001,0.00001
 #results output frequency
 1
-
