@@ -105,17 +105,7 @@ PROGRAM ActinWaves
   INTEGER(CMISSIntg), PARAMETER :: CellMLStateFieldUserNumber=20
   INTEGER(CMISSIntg), PARAMETER :: CellMLIntermediateFieldUserNumber=21
   INTEGER(CMISSIntg), PARAMETER :: CellMLParametersFieldUserNumber=22
-
-
-  !MECHANICS VARIABLES
-  INTEGER(CMISSIntg), PARAMETER :: MechStiffnessFieldUserNumber=30
-  INTEGER(CMISSIntg), PARAMETER :: DeformedFieldUserNumber=31
-  INTEGER(CMISSIntg), PARAMETER :: MechEquationSetUserNumber=32
-  INTEGER(CMISSIntg), PARAMETER :: MechEquationsSetFieldUserNumber=33
-  INTEGER(CMISSIntg), PARAMETER :: MechProblemUserNumber=34
-  INTEGER(CMISSIntg), PARAMETER :: FibreFieldUserNumber=35
-  INTEGER(CMISSIntg), PARAMETER :: PressureBasisUserNumber=36
-    
+  
   
   !cmfe type variables used for this program
 
@@ -150,19 +140,7 @@ PROGRAM ActinWaves
   TYPE(cmfe_CellMLEquationsType) :: CellMLEquations
   TYPE(cmfe_FieldType) :: CellMLModelsField,CellMLStateField,CellMLIntermediateField,CellMLParametersField
 
-  !Mechanics Related Fields
-  TYPE(cmfe_MeshElementsType) :: PressureElements
-  TYPE(cmfe_BasisType) :: PressureBasis
-  TYPE(cmfe_BoundaryConditionsType) :: MechBCs
-  TYPE(cmfe_ProblemType) :: MechProblem  
-  TYPE(cmfe_ControlLoopType) :: LoadLoop
-  TYPE(cmfe_EquationsType) :: MechEquations
-  TYPE(cmfe_EquationsSetType) :: MechEquationsSet
-  TYPE(cmfe_FieldType) :: FibreField,MechStiffnessField,DeformedField,MechEquationsSetField
-  TYPE(cmfe_SolverType) :: MechSolver,MechLinearSolver
-  TYPE(cmfe_SolverEquationsType) :: MechSolverEquations
-  
-  
+
 #ifdef WIN32
   !Quickwin type
   LOGICAL :: QUICKWIN_STATUS=.FALSE.
@@ -176,17 +154,17 @@ PROGRAM ActinWaves
 
   INTEGER(CMISSIntg) :: NUMBER_OF_ELEMENTS,CONDITION
   INTEGER(CMISSIntg) :: NUMBER_OF_DOMAINS,NODE_NUMBER
-  INTEGER(CMISSIntg),DIMENSION(12) :: MechBCNODES,MechBCNODES_PULL
+  INTEGER(CMISSIntg),DIMENSION(2) :: BCNODES
   INTEGER(CMISSIntg) :: MPI_IERROR
-  INTEGER :: node,i,st,outputfreq,NUMBER_OF_NODES,NUMBER_OF_ATTRIBUTES,NUMBER_OF_COORDS, &
-    & BOUNDARY_MARKER,nodedomain,NODES_PER_ELE,ELE_ATTRIBUTES,element,GeometricMeshComponent
+  INTEGER :: node,st,outputfreq,NUMBER_OF_NODES,NUMBER_OF_ATTRIBUTES,NUMBER_OF_COORDS, &
+    & BOUNDARY_MARKER,nodedomain,NODES_PER_ELE,ELE_ATTRIBUTES,element,i,GeometricMeshComponent
   REAL(CMISSRP) :: init_NPFActive, init_NPFInActive, Dx_NPFActive,Dy_NPFActive,Dx_NPFInActive,Dy_NPFInActive
   REAL(CMISSRP) :: startT,endT,Tstep,ODE_TIME_STEP,nodex,nodey, VALUE, init_FActin,kzero,stwo,sone
   REAL(CMISSRP) :: additive_perturb_val, perturb_pos_startx,perturb_NPFActive,perturb_NPFInActive
   INTEGER(CMISSIntg) :: NumberOfComputationalNodes,ComputationalNodeNumber
-  INTEGER(CMISSIntg) :: EquationsSetIndex,MechEquationsSetIndex,CellMLIndex,constantModelIndex
+  INTEGER(CMISSIntg) :: EquationsSetIndex,CellMLIndex,constantModelIndex
   INTEGER(CMISSIntg) :: Err
-  LOGICAL :: EXPORT_FIELD,INPIPETTE
+  LOGICAL :: EXPORT_FIELD
   CHARACTER(250) :: CELLID,NODEFILE,ELEMFILE,ActinPolymSignalModel  
 #ifdef WIN32
   !Initialise QuickWin
@@ -282,25 +260,17 @@ PROGRAM ActinWaves
   CALL cmfe_Region_CreateFinish(Region,Err)
   
 !_________________________________________________________________________________________________
-  !Start the creation of a biquad and bilinear-simplex basis
+  !Start the creation of a biilinear-simplex basis
 
-    CALL cmfe_Basis_Initialise(Basis,Err)
-    CALL cmfe_Basis_CreateStart(BasisUserNumber,Basis,Err)
-    !set the basis to bilinear simplex
-    CALL cmfe_Basis_TypeSet(Basis,CMFE_BASIS_SIMPLEX_TYPE,Err)
-    CALL cmfe_Basis_NumberOfXiSet(Basis,2,Err)
-      CALL cmfe_Basis_InterpolationXiSet(Basis,(/CMFE_BASIS_QUADRATIC_SIMPLEX_INTERPOLATION, & 
-      & CMFE_BASIS_QUADRATIC_SIMPLEX_INTERPOLATION/), Err)
-    CALL cmfe_Basis_CreateFinish(Basis,Err)
-
-    CALL cmfe_Basis_Initialise(PressureBasis,Err)
-    CALL cmfe_Basis_CreateStart(PressureBasisUserNumber,PressureBasis,Err)
-    !set the basis to bilinear simplex
-    CALL cmfe_Basis_TypeSet(PressureBasis,CMFE_BASIS_SIMPLEX_TYPE,Err)
-    CALL cmfe_Basis_NumberOfXiSet(PressureBasis,2,Err)
-      CALL cmfe_Basis_InterpolationXiSet(PressureBasis,(/CMFE_BASIS_LINEAR_SIMPLEX_INTERPOLATION, & 
-      & CMFE_BASIS_LINEAR_SIMPLEX_INTERPOLATION/), Err)
-    CALL cmfe_Basis_CreateFinish(PressureBasis,Err)
+  CALL cmfe_Basis_Initialise(Basis,Err)
+  CALL cmfe_Basis_CreateStart(BasisUserNumber,Basis,Err)
+  !set the basis to bilinear simplex
+  CALL cmfe_Basis_TypeSet(Basis,CMFE_BASIS_SIMPLEX_TYPE,Err)
+  CALL cmfe_Basis_NumberOfXiSet(Basis,2,Err)
+  CALL cmfe_Basis_InterpolationXiSet(Basis,(/CMFE_Basis_Linear_Simplex_Interpolation, & 
+  & CMFE_Basis_Linear_Simplex_Interpolation/), Err)
+  !Finish the creation of the basis
+  CALL cmfe_Basis_CreateFinish(Basis,Err)
 
   !Time to create a mesh
   !Read in nodes.
@@ -327,10 +297,9 @@ PROGRAM ActinWaves
   ELSE
     PRINT *,'Element file opened successfully'
     READ(11,*) NUMBER_OF_ELEMENTS,NODES_PER_ELE,ELE_ATTRIBUTES
-    ALLOCATE(ElemMap(NUMBER_OF_ELEMENTS,7))
+    ALLOCATE(ElemMap(NUMBER_OF_ELEMENTS,4))
     DO i = 1,NUMBER_OF_ELEMENTS
-      READ(11,*) ElemMap(i,1),ElemMap(i,2),ElemMap(i,3),ElemMap(i,4), &
-        & ElemMap(i,5),ElemMap(i,6),ElemMap(i,7)
+      READ(11,*) ElemMap(i,1),ElemMap(i,2),ElemMap(i,3),ElemMap(i,4)
     ENDDO
   ENDIF 
   CLOSE(11)
@@ -344,20 +313,16 @@ PROGRAM ActinWaves
   CALL cmfe_Mesh_Initialise(Mesh,Err)
   CALL cmfe_Mesh_CreateStart(MeshUserNumber,Region,NUMBER_OF_COORDS,Mesh,Err)
   CALL cmfe_Mesh_NumberOfElementsSet(Mesh,NUMBER_OF_ELEMENTS,Err)
-  CALL cmfe_Mesh_NumberOfComponentsSet(Mesh,2,Err)
+  CALL cmfe_Mesh_NumberOfComponentsSet(Mesh,1,Err)
   
   CALL cmfe_MeshElements_Initialise(MeshElements,Err)
   CALL cmfe_MeshElements_CreateStart(Mesh,1,Basis,MeshElements,Err)
-  CALL cmfe_MeshElements_CreateStart(Mesh,2,PressureBasis,PressureElements,Err)
   DO i = 1,NUMBER_OF_ELEMENTS
     element = ElemMap(i,1)
     CALL cmfe_MeshElements_NodesSet(MeshElements,element,(/ElemMap(i,2),ElemMap(i,3), &
-      &   ElemMap(i,4),ElemMap(i,7),ElemMap(i,5),ElemMap(i,6)/),Err)
-    CALL cmfe_MeshElements_NodesSet(PressureElements,element, &
-      & (/ElemMap(i,2),ElemMap(i,3),ElemMap(i,4)/),Err)
+     &   ElemMap(i,4)/),Err)
   ENDDO
   CALL cmfe_MeshElements_CreateFinish(MeshElements,Err)
-  CALL cmfe_MeshElements_CreateFinish(PressureElements,Err)
   CALL cmfe_Mesh_CreateFinish(Mesh,Err)
 
   !Create a decomposition
@@ -868,6 +833,7 @@ PROGRAM ActinWaves
   perturb_NPFActive = init_NPFActive+additive_perturb_val
   perturb_NPFInActive = init_NPFInActive-additive_perturb_val
   
+  !CALL cmfe_DiagnosticsSetOn(CMFE_FROM_Diag_Type,[1],"Diagnostics",["BOUNDARY_CONDITIONS_INITIALISE"],Err)
 
   CALL cmfe_BoundaryConditions_Initialise(BoundaryConditions,Err)
   CALL cmfe_SolverEquations_BoundaryConditionsCreateStart(SolverEquations,BoundaryConditions,Err)
@@ -908,9 +874,9 @@ PROGRAM ActinWaves
 
 !__________________________________________________________________________________________________________
   !Solve the problem
-  CALL cmfe_DiagnosticsSetOn(CMFE_FROM_Diag_Type,[1],"Diagnostics",["CMFE_PROBLEM_SOLVE"],Err)
-
   CALL cmfe_Problem_Solve(Problem,Err)
+!__________________________________________________________________________________________________________
+
   EXPORT_FIELD=.TRUE.
   IF(EXPORT_FIELD) THEN
     CALL cmfe_Fields_Initialise(Fields,Err)
@@ -920,210 +886,8 @@ PROGRAM ActinWaves
     CALL cmfe_Fields_Finalise(Fields,Err)
 
   ENDIF
-
-!__________________________________________________________________________________________________________
- !SET UP MECHANICS 
-
-!__________________________________________________________________________________________________________
-
-  !Create the mechannics equations_set
-  CALL cmfe_Field_Initialise(FibreField,Err)
-  CALL cmfe_Field_CreateStart(FibreFieldUserNumber,Region,FibreField,Err)
-  CALL cmfe_Field_TypeSet(FibreField,CMFE_FIELD_FIBRE_TYPE,Err)
-  CALL cmfe_Field_MeshDecompositionSet(FibreField,Decomposition,Err)
-  CALL cmfe_Field_GeometricFieldSet(FibreField,GeometricField,Err)
-  CALL cmfe_Field_NumberOfVariablesSet(FibreField,1,Err)
-  CALL cmfe_Field_NumberOfComponentsSet(FibreField,CMFE_FIELD_U_VARIABLE_TYPE,2,Err)  
-  CALL cmfe_Field_ComponentMeshComponentSet(FibreField,CMFE_FIELD_U_VARIABLE_TYPE,1,1,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(FibreField,CMFE_FIELD_U_VARIABLE_TYPE,2,1,Err)
-  CALL cmfe_Field_VariableLabelSet(FibreField,CMFE_FIELD_U_VARIABLE_TYPE,"Fibre",Err)
-  CALL cmfe_Field_CreateFinish(FibreField,Err)
-
-  !Create the stiffness field
-  CALL cmfe_Field_Initialise(MechStiffnessField,Err)
-  CALL cmfe_Field_CreateStart(MechStiffnessFieldUserNumber,Region,MechStiffnessField,Err)
-  CALL cmfe_Field_TypeSet(MechStiffnessField,CMFE_FIELD_MATERIAL_TYPE,Err)
-  CALL cmfe_Field_MeshDecompositionSet(MechStiffnessField,Decomposition,Err)        
-  CALL cmfe_Field_GeometricFieldSet(MechStiffnessField,GeometricField,Err)
-  CALL cmfe_Field_NumberOfVariablesSet(MechStiffnessField,1,Err)
-  CALL cmfe_Field_NumberOfComponentsSet(MechStiffnessField,CMFE_FIELD_U_VARIABLE_TYPE,2,Err)  
-  CALL cmfe_Field_ComponentMeshComponentSet(MechStiffnessField,CMFE_FIELD_U_VARIABLE_TYPE,1,1,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(MechStiffnessField,CMFE_FIELD_U_VARIABLE_TYPE,2,1,Err)
-  CALL cmfe_Field_VariableLabelSet(MechStiffnessField,CMFE_FIELD_U_VARIABLE_TYPE,"Stiffness",Err)
-  CALL cmfe_Field_CreateFinish(MechStiffnessField,Err)
-
-  !Set Mooney-Rivlin constants c10 and c01 to 2.0 and 6.0 respectively.
-  CALL cmfe_Field_ComponentValuesInitialise(MechStiffnessField,CMFE_FIELD_U_VARIABLE_TYPE, &
-    & CMFE_FIELD_VALUES_SET_TYPE,1,1.0_CMISSRP,Err)
-  CALL cmfe_Field_ComponentValuesInitialise(MechStiffnessField,CMFE_FIELD_U_VARIABLE_TYPE, &
-    & CMFE_FIELD_VALUES_SET_TYPE,2,0.0_CMISSRP,Err)
-  !CALL cmfe_Field_ComponentValuesInitialise(MechStiffnessField,CMFE_FIELD_V_VARIABLE_TYPE, &
-  !  & CMFE_FIELD_VALUES_SET_TYPE,1,0.0_CMISSRP,Err)
-
-  CALL cmfe_Field_Initialise(DeformedField,Err)
-  CALL cmfe_Field_CreateStart(DeformedFieldUserNumber,Region,DeformedField,Err)
-  CALL cmfe_Field_TypeSet(DeformedField,CMFE_FIELD_GEOMETRIC_GENERAL_TYPE,Err)
-  CALL cmfe_Field_MeshDecompositionSet(DeformedField,Decomposition,Err)
-  CALL cmfe_Field_GeometricFieldSet(DeformedField,GeometricField,Err)
-  CALL cmfe_Field_DependentTypeSet(DeformedField,CMFE_FIELD_DEPENDENT_TYPE,Err)
-  CALL cmfe_Field_NumberOfVariablesSet(DeformedField,2,Err)
-  CALL cmfe_Field_VariableTypesSet(DeformedField,[CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_DELUDELN_VARIABLE_TYPE],Err)
-  CALL cmfe_Field_VariableLabelSet(DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,"Deformation",Err)
-
-  CALL cmfe_Field_NumberOfComponentsSet(DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,3,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,1,1,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,2,1,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,3,2,Err)
-
-  CALL cmfe_Field_NumberOfComponentsSet(DeformedField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,3,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(DeformedField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,1,1,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(DeformedField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,2,1,Err)
-  CALL cmfe_Field_ComponentMeshComponentSet(DeformedField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,3,2,Err)
-
-  CALL cmfe_Field_CreateFinish(DeformedField,Err)
-
-  CALL cmfe_Field_Initialise(MechEquationsSetField,Err)
-  CALL cmfe_EquationsSet_CreateStart(MechEquationSetUserNumber,Region,FibreField,[CMFE_EQUATIONS_SET_ELASTICITY_CLASS, &
-    & CMFE_EQUATIONS_SET_FINITE_ELASTICITY_TYPE,CMFE_EQUATIONS_SET_MOONEY_RIVLIN_SUBTYPE],MechEquationsSetFieldUserNumber, &
-    & MechEquationsSetField,MechEquationsSet,Err)
-  CALL cmfe_EquationsSet_CreateFinish(MechEquationsSet,Err)
-  CALL cmfe_EquationsSet_DependentCreateStart(MechEquationsSet,DeformedFieldUserNumber,DeformedField,Err)
-  CALL cmfe_EquationsSet_DependentCreateFinish(MechEquationsSet,Err)
-  CALL cmfe_EquationsSet_MaterialsCreateStart(MechEquationsSet,MechStiffnessFieldUserNumber,MechStiffnessField,Err)  
-  CALL cmfe_EquationsSet_MaterialsCreateFinish(MechEquationsSet,Err)
-
-
-  !Create the equations set equations
-  CALL cmfe_Equations_Initialise(MechEquations,Err)
-  CALL cmfe_EquationsSet_EquationsCreateStart(MechEquationsSet,MechEquations,Err)
-  CALL cmfe_Equations_SparsityTypeSet(MechEquations,CMFE_EQUATIONS_SPARSE_MATRICES,Err)
-  CALL cmfe_Equations_OutputTypeSet(MechEquations,CMFE_EQUATIONS_NO_OUTPUT,Err)
-  CALL cmfe_EquationsSet_EquationsCreateFinish(MechEquationsSet,Err)
-
-  !Initialise dependent field from undeformed geometry and displacement bcs and set hydrostatic pressure
-  CALL cmfe_Field_ParametersToFieldParametersComponentCopy(GeometricField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
-    & 1,DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,1,Err)
-  CALL cmfe_Field_ParametersToFieldParametersComponentCopy(GeometricField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
-    & 2,DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,2,Err)
-  CALL cmfe_Field_ComponentValuesInitialise(DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,3,0.0_CMISSRP, &
-    & Err)
-    
-  !Define the problem
-  CALL cmfe_Problem_Initialise(MechProblem,Err)
-  CALL cmfe_Problem_CreateStart(MechProblemUserNumber,[CMFE_PROBLEM_ELASTICITY_CLASS,CMFE_PROBLEM_FINITE_ELASTICITY_TYPE, &
-    & CMFE_PROBLEM_NO_SUBTYPE],MechProblem,Err)
-  CALL cmfe_Problem_CreateFinish(MechProblem,Err)
-
-  !Create the problem control loop
-  CALL cmfe_Problem_ControlLoopCreateStart(MechProblem,Err)
-  CALL cmfe_ControlLoop_Initialise(LoadLoop,Err)
-  CALL cmfe_Problem_ControlLoopGet(MechProblem,CMFE_CONTROL_LOOP_NODE,LoadLoop,Err)
-  CALL cmfe_ControlLoop_TypeSet(LoadLoop,CMFE_PROBLEM_CONTROL_LOAD_INCREMENT_LOOP_TYPE,Err)
-  CALL cmfe_ControlLoop_MaximumIterationsSet(LoadLoop,5,Err)
-  CALL cmfe_Problem_ControlLoopCreateFinish(MechProblem,Err)
-
-  !Create the problem solvers
-  CALL cmfe_Solver_Initialise(MechSolver,Err)
-  CALL cmfe_Solver_Initialise(MechLinearSolver,Err)
-  CALL cmfe_Problem_SolversCreateStart(MechProblem,Err)
-  CALL cmfe_Problem_SolverGet(MechProblem,CMFE_CONTROL_LOOP_NODE,1,MechSolver,Err)
-  CALL cmfe_Solver_OutputTypeSet(MechSolver,CMFE_SOLVER_PROGRESS_OUTPUT,Err)
-  CALL cmfe_Solver_NewtonJacobianCalculationTypeSet(MechSolver,CMFE_SOLVER_NEWTON_JACOBIAN_EQUATIONS_CALCULATED,Err)
-  CALL cmfe_Solver_NewtonLinearSolverGet(MechSolver,MechLinearSolver,Err)
-  CALL cmfe_Solver_LinearTypeSet(MechLinearSolver,CMFE_SOLVER_LINEAR_DIRECT_SOLVE_TYPE,Err)
-  CALL cmfe_Problem_SolversCreateFinish(MechProblem,Err)
-
-  !Create the problem solver equations
-  CALL cmfe_Solver_Initialise(MechSolver,Err)
-  CALL cmfe_SolverEquations_Initialise(MechSolverEquations,Err)
-  CALL cmfe_Problem_SolverEquationsCreateStart(MechProblem,Err)
-  CALL cmfe_Problem_SolverGet(MechProblem,CMFE_CONTROL_LOOP_NODE,1,MechSolver,Err)
-  CALL cmfe_Solver_SolverEquationsGet(MechSolver,MechSolverEquations,Err)
-  CALL cmfe_SolverEquations_EquationsSetAdd(MechSolverEquations,MechEquationsSet,MechEquationsSetIndex,Err)
-  CALL cmfe_Problem_SolverEquationsCreateFinish(MechProblem,Err)
-
-
-  !Prescribe boundary conditions (absolute nodal parameters)
-  MechBCNODES = (/1,2,3,98,195,236,883,912,982,1019,1054,1056/)
-  MechBCNODES_PULL=(/49,50,51,52,196,255,428,863,888,1057,1143,1147/)!,2,3,4,5,96,97,98,1298,1299,1352,1354,1705,1710,1935,1937,2065,2074, &
-    !& 2092,2103,2114,2128,2129,2355/)
-  CALL cmfe_BoundaryConditions_Initialise(MechBCs,Err)
-  CALL cmfe_SolverEquations_BoundaryConditionsCreateStart(MechSolverEquations,MechBCs,Err)
   
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,1,2, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,50,2, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
 
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,25,1, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,75,1, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-  
-  DO node=1,12
-    NODE_NUMBER=MechBCNODES(node)
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,NODE_NUMBER,1, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,NODE_NUMBER,2, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-    NODE_NUMBER=MechBCNODES_PULL(node)
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,NODE_NUMBER,1, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.05_CMISSRP,Err)
-    CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-      & CMFE_FIELD_U_VARIABLE_TYPE,1,1,NODE_NUMBER,2, &
-      & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-  ENDDO    
-    
-!  DO node = 1,NUMBER_OF_NODES
-!    INPIPETTE = .FALSE.
-!    NODE_NUMBER = NodeNums(node,1)
-!    
-!    CALL cmfe_Decomposition_NodeDomainGet(Decomposition,NODE_NUMBER,1,NodeDomain,Err)
-!    IF(NodeDomain==ComputationalNodeNumber) THEN  
-!      IF(NodeNums(node,2).EQ.1) THEN
-!        DO i=1,2
-!          IF(NODE_NUMBER.EQ.MechBCNODES(i)) THEN
-!            INPIPETTE = .TRUE.
-!          ENDIF
-!        ENDDO 
-!        IF(INPIPETTE) THEN
-!          CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField, &
-!            & CMFE_FIELD_U_VARIABLE_TYPE,1,1,NODE_NUMBER,1, &
-!            & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,-0.0_CMISSRP,Err)
-!        
-!        ELSE
-!          CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,1,1,NODE_NUMBER,1, &
-!            & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-!
-!          CALL cmfe_BoundaryConditions_AddNode(MechBCs,DeformedField,CMFE_FIELD_U_VARIABLE_TYPE,1,1,NODE_NUMBER,2, &
-!            & CMFE_BOUNDARY_CONDITION_FIXED_INCREMENTED,0.0_CMISSRP,Err)
-!        ENDIF
-!      ENDIF
-!    ENDIF    
-!  ENDDO
-  CALL cmfe_SolverEquations_BoundaryConditionsCreateFinish(MechSolverEquations,Err)
-
-!__________________________________________________________________________________________________________
-
-  WRITE(*,*) 'Solve Mechanics Problem'
-  CALL cmfe_Problem_Solve(MechProblem,Err)
-  !Output solution
-  CALL cmfe_Fields_Initialise(Fields,Err)
-  CALL cmfe_Fields_Create(Region,Fields,Err)
-  CALL cmfe_Fields_NodesExport(Fields,"Micropipette","FORTRAN",Err)
-  CALL cmfe_Fields_ElementsExport(Fields,"Micropipette","FORTRAN",Err)
-  CALL cmfe_Fields_Finalise(Fields,Err)
-
-  CALL cmfe_Finalise(Err)
-  
   WRITE(*,'(A)') "Program successfully completed."
   
 
